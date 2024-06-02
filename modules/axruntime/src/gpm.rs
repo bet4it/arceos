@@ -114,7 +114,7 @@ impl GuestPageTableTrait for GuestPageTable {
         #[cfg(any(target_arch = "riscv64", target_arch = "x86_64", target_arch = "aarch64"))]
         {
             let (addr, _, _) = self.0.query(VirtAddr::from(gpa)).map_err(|paging_err| {
-                error!("paging error: {:?}", paging_err);
+                info!("paging error: {:?}", paging_err);
                 HyperError::Internal
             })?;
             Ok(addr.into())
