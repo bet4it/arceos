@@ -53,7 +53,8 @@ fn main(hart_id: usize) {
         let pcpu = PerCpu::<HyperCraftHalImpl>::this_cpu();
 
         // create vcpu
-        let gpt = setup_gpm(0x9000_0000).unwrap();
+        let dtb = phys_to_virt(0x90000000.into()).as_usize();
+        let gpt = setup_gpm(dtb).unwrap();
         let vcpu = pcpu.create_vcpu(0, 0x9020_0000).unwrap();
         let mut vcpus = VmCpus::new();
 

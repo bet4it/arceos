@@ -158,13 +158,10 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         init_allocator();
     }
 
-    #[cfg(not(feature = "hv"))]
+    #[cfg(feature = "paging")]
     {
-        #[cfg(feature = "paging")]
-        {
-            info!("Initialize kernel page table...");
-            remap_kernel_memory().expect("remap kernel memoy failed");
-        }
+        info!("Initialize kernel page table...");
+        remap_kernel_memory().expect("remap kernel memoy failed");
     }
 
     info!("Initialize platform devices...");
