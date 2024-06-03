@@ -41,7 +41,6 @@ mod aarch64_config;
 mod x64;
 
 mod gdbserver;
-use gdbserver::GdbServer;
 
 #[no_mangle]
 fn main(hart_id: usize) {
@@ -63,8 +62,8 @@ fn main(hart_id: usize) {
 
         // add vcpu into vm
         vcpus.add_vcpu(vcpu).unwrap();
-        let gdbserver = GdbServer::new(5555).unwrap();
-        let mut vm: VM<HyperCraftHalImpl, GuestPageTable, GdbServer> = VM::new(vcpus, gpt, gdbserver).unwrap();
+        let mut vm = VM::new(vcpus, gpt).unwrap();
+        vm.gdbserver_init(gdbserver::GdbServer::new(5555).unwrap());
         vm.init_vcpu(0);
 
         // vm run
