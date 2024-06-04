@@ -19,11 +19,19 @@ use libax::{
     },
     info,
 };
-#[cfg(not(target_arch = "aarch64"))]
+#[cfg(target_arch = "riscv64")]
 use libax::{
     hv::{
         self, GuestPageTable, GuestPageTableTrait, HyperCallMsg, HyperCraftHalImpl, PerCpu, Result,
         VCpu, VmCpus, VmExitInfo, VM, phys_to_virt,
+    },
+    info,
+};
+#[cfg(target_arch = "x86_64")]
+use libax::{
+    hv::{
+        self, GuestPageTable, GuestPageTableTrait, HyperCallMsg, HyperCraftHalImpl, PerCpu, Result,
+        VCpu, VmExitInfo, phys_to_virt,
     },
     info,
 };
@@ -106,6 +114,7 @@ fn main(hart_id: usize) {
             .create_vcpu(x64::BIOS_ENTRY, gpm.nest_page_table_root())
             .unwrap();
 
+        vcpu.gdbserver_init(gdbserver::GdbServer::new(5555).unwrap());
         println!("Running guest...");
         vcpu.run();
 

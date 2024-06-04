@@ -1,16 +1,17 @@
 mod device_emu;
 
+use gdbstub::conn::ConnectionExt;
 use hypercraft::{VmxExitReason, VCpu as HVCpu, HyperResult, HyperError, VmxExitInfo};
 use device_emu::VirtLocalApic;
 
-type VCpu = HVCpu<super::HyperCraftHalImpl>;
+type VCpu<C> = HVCpu<super::HyperCraftHalImpl, C>;
 
 const VM_EXIT_INSTR_LEN_CPUID: u8 = 2;
 const VM_EXIT_INSTR_LEN_RDMSR: u8 = 2;
 const VM_EXIT_INSTR_LEN_WRMSR: u8 = 2;
 const VM_EXIT_INSTR_LEN_VMCALL: u8 = 3;
 
-fn handle_external_interrupt(vcpu: &mut VCpu) -> HyperResult {
+fn handle_external_interrupt<C: ConnectionExt>(vcpu: &mut VCpu<C>) -> HyperResult {
     #[cfg(feature = "irq")]
     {
         let int_info = vcpu.interrupt_exit_info()?;
@@ -24,7 +25,7 @@ fn handle_external_interrupt(vcpu: &mut VCpu) -> HyperResult {
     }
 }
 
-fn handle_cpuid(vcpu: &mut VCpu) -> HyperResult {
+fn handle_cpuid<C: ConnectionExt>(vcpu: &mut VCpu<C>) -> HyperResult {
     use raw_cpuid::{cpuid, CpuIdResult};
 
     const LEAF_FEATURE_INFO: u32 = 0x1;
@@ -71,7 +72,7 @@ fn handle_cpuid(vcpu: &mut VCpu) -> HyperResult {
     Ok(())
 }
 
-fn handle_io_instruction(vcpu: &mut VCpu, exit_info: &VmxExitInfo) -> HyperResult {
+fn handle_io_instruction<C: ConnectionExt>(vcpu: &mut VCpu<C>, exit_info: &VmxExitInfo) -> HyperResult {
     let io_info = vcpu.io_exit_info()?;
     trace!(
         "VM exit: I/O instruction @ {:#x}: {:#x?}",
@@ -123,7 +124,7 @@ fn handle_io_instruction(vcpu: &mut VCpu, exit_info: &VmxExitInfo) -> HyperResul
     Ok(())
 }
 
-fn handle_msr_read(vcpu: &mut VCpu) -> HyperResult {
+fn handle_msr_read<C: ConnectionExt>(vcpu: &mut VCpu<C>) -> HyperResult {
     let msr = vcpu.regs().rcx as u32;
 
     use x86::msr::*;
@@ -148,7 +149,7 @@ fn handle_msr_read(vcpu: &mut VCpu) -> HyperResult {
     Ok(())
 }
 
-fn handle_msr_write(vcpu: &mut VCpu) -> HyperResult {
+fn handle_msr_write<C: ConnectionExt>(vcpu: &mut VCpu<C>) -> HyperResult {
     let msr = vcpu.regs().rcx as u32;
     let value = (vcpu.regs().rax & 0xffff_ffff) | (vcpu.regs().rdx << 32);
     trace!("VM exit: WRMSR({:#x}) <- {:#x}", msr, value);
@@ -172,7 +173,7 @@ fn handle_msr_write(vcpu: &mut VCpu) -> HyperResult {
     Ok(())
 }
 
-pub fn vmexit_handler(vcpu: &mut VCpu) -> HyperResult {
+pub fn vmexit_handler<C: ConnectionExt>(vcpu: &mut VCpu<C>) -> HyperResult {
     let exit_info = vcpu.exit_info()?;
     
     match exit_info.exit_reason {

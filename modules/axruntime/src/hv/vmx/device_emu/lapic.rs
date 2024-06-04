@@ -1,9 +1,10 @@
 //! Emulated Local APIC. (SDM Vol. 3A, Chapter 10)
 
 #![allow(dead_code)]
+use gdbstub::conn::ConnectionExt;
 use hypercraft::{VCpu as HVCpu, HyperResult, HyperError};
 
-type VCpu = HVCpu<crate::hv::HyperCraftHalImpl>;
+type VCpu<C> = HVCpu<crate::hv::HyperCraftHalImpl, C>;
 
 /// ID register.
 const APICID: u32 = 0x2;
@@ -43,17 +44,17 @@ impl VirtLocalApic {
         0x800..0x840
     }
 
-    pub fn rdmsr(VCpu: &mut VCpu, msr: u32) -> HyperResult<u64> {
+    pub fn rdmsr<C: ConnectionExt>(VCpu: &mut VCpu<C>, msr: u32) -> HyperResult<u64> {
         Self::read(VCpu, msr - 0x800)
     }
 
-    pub fn wrmsr(VCpu: &mut VCpu, msr: u32, value: u64) -> HyperResult {
+    pub fn wrmsr<C: ConnectionExt>(VCpu: &mut VCpu<C>, msr: u32, value: u64) -> HyperResult {
         Self::write(VCpu, msr - 0x800, value)
     }
 }
 
 impl VirtLocalApic {
-    fn read(VCpu: &mut VCpu, offset: u32) -> HyperResult<u64> {
+    fn read<C: ConnectionExt>(VCpu: &mut VCpu<C>, offset: u32) -> HyperResult<u64> {
         let apic_timer = VCpu.apic_timer_mut();
         match offset {
             SIVR => Ok(0x1ff), // SDM Vol. 3A, Section 10.9, Figure 10-23 (with Software Enable bit)
@@ -68,7 +69,7 @@ impl VirtLocalApic {
         }
     }
 
-    fn write(VCpu: &mut VCpu, offset: u32, value: u64) -> HyperResult {
+    fn write<C: ConnectionExt>(VCpu: &mut VCpu<C>, offset: u32, value: u64) -> HyperResult {
         if offset != ICR && (value >> 32) != 0 {
             return Err(HyperError::InvalidParam); // all registers except ICR are 32-bits
         }
