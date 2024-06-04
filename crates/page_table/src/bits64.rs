@@ -238,6 +238,23 @@ impl<M: PagingMetaData, PTE: GenericPTE, IF: PagingIf> PageTable64<M, PTE, IF> {
             func,
         )
     }
+    /// Read data from physical memory addr
+    pub fn read_phys_addrs(&self, paddr: PhysAddr, buf: &mut [u8]) -> PagingResult<usize> {
+        let vaddr = IF::phys_to_virt(paddr);
+        unsafe {
+            core::ptr::copy_nonoverlapping(vaddr.as_ptr(), buf.as_mut_ptr(), buf.len())
+        }
+        Ok(buf.len())
+    }
+
+    /// Write data to physical memory addr
+    pub fn write_phys_addrs(&mut self, paddr: PhysAddr, buf: &[u8]) -> PagingResult<usize> {
+        let vaddr = IF::phys_to_virt(paddr);
+        unsafe {
+            core::ptr::copy_nonoverlapping(buf.as_ptr(), vaddr.as_mut_ptr(),  buf.len())
+        }
+        Ok(buf.len())
+    }
 }
 
 // Private implements.

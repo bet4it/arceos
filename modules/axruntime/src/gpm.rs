@@ -139,6 +139,16 @@ impl GuestPageTableTrait for GuestPageTable {
             todo!()
         }
     }
+
+    fn read_guest_phys_addrs(&self, paddr: GuestPhysAddr, buf: &mut [u8]) -> HyperResult<usize> {
+        let addr = self.translate(paddr)?;
+        self.0.read_phys_addrs(addr.into(), buf).map_err(|_| HyperError::PageFault)
+    }
+
+    fn write_guest_phys_addrs(&mut self, paddr: GuestPhysAddr, buf: &[u8]) -> HyperResult<usize> {
+        let addr = self.translate(paddr)?;
+        self.0.write_phys_addrs(addr.into(), buf).map_err(|_| HyperError::PageFault)
+    }
 }
 
 impl GuestPageTable {
