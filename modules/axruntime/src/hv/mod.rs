@@ -1,6 +1,6 @@
 use axalloc::global_allocator;
 use axhal::mem::{PAGE_SIZE_4K, phys_to_virt, virt_to_phys};
-use hypercraft::{HostPhysAddr, HostVirtAddr, HyperCraftHal, HyperResult, VCpu};
+use hypercraft::{GuestPageTableTrait, HostPhysAddr, HostVirtAddr, HyperCraftHal, HyperResult, VCpu};
 use gdbstub::conn::ConnectionExt;
 
 #[cfg(target_arch = "x86_64")]
@@ -32,7 +32,7 @@ impl HyperCraftHal for HyperCraftHalImpl {
     }
 
     #[cfg(target_arch = "x86_64")]
-    fn vmexit_handler<C: ConnectionExt>(vcpu: &mut VCpu<Self, C>) -> HyperResult {
+    fn vmexit_handler<G: GuestPageTableTrait, C: ConnectionExt>(vcpu: &mut VCpu<Self, G, C>) -> HyperResult {
         vmx::vmexit_handler(vcpu)
     }
 

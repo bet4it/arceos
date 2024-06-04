@@ -149,10 +149,8 @@ impl GuestPageTableTrait for GuestPageTable {
         let addr = self.translate(paddr)?;
         self.0.write_phys_addrs(addr.into(), buf).map_err(|_| HyperError::PageFault)
     }
-}
 
-impl GuestPageTable {
-    pub fn root_paddr(&self) -> PhysAddr {
-        self.0.root_paddr()
+    fn root_paddr(&self) -> hypercraft::HostPhysAddr {
+        self.0.root_paddr().into()
     }
 }

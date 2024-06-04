@@ -111,7 +111,7 @@ fn main(hart_id: usize) {
         info!("{:#x?}", gpm);
 
         let mut vcpu = p
-            .create_vcpu(x64::BIOS_ENTRY, gpm.nest_page_table_root())
+            .create_vcpu(x64::BIOS_ENTRY, gpm.npt)
             .unwrap();
 
         vcpu.gdbserver_init(gdbserver::GdbServer::new(5555).unwrap());
