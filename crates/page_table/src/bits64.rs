@@ -33,7 +33,8 @@ const fn p1_index(vaddr: VirtAddr) -> usize {
 pub struct PageTable64<M: PagingMetaData, PTE: GenericPTE, IF: PagingIf> {
     root_paddr: PhysAddr,
     intrm_tables: Vec<PhysAddr>,
-    _phantom: PhantomData<(M, PTE, IF)>,
+    paging: IF,
+    _phantom: PhantomData<(M, PTE)>,
 }
 
 impl<M: PagingMetaData, PTE: GenericPTE, IF: PagingIf> PageTable64<M, PTE, IF> {
@@ -41,12 +42,24 @@ impl<M: PagingMetaData, PTE: GenericPTE, IF: PagingIf> PageTable64<M, PTE, IF> {
     ///
     /// It will allocate a new page for the root page table.
     pub fn try_new() -> PagingResult<Self> {
-        let root_paddr = Self::alloc_table()?;
+        let paging = IF::new();
+        let root_paddr = Self::alloc_table(&paging)?;
         Ok(Self {
             root_paddr,
             intrm_tables: vec![root_paddr],
+            paging,
             _phantom: PhantomData,
         })
+    }
+
+    /// Creates page table instance with root_paddr and paging provided.
+    pub fn create_from(root_paddr: PhysAddr, paging: IF) -> Self {
+        Self {
+            root_paddr,
+            intrm_tables: vec![],
+            paging,
+            _phantom: PhantomData,
+        }
     }
 
     #[cfg(target_arch = "riscv64")]
@@ -239,29 +252,35 @@ impl<M: PagingMetaData, PTE: GenericPTE, IF: PagingIf> PageTable64<M, PTE, IF> {
         )
     }
     /// Read data from physical memory addr
-    pub fn read_phys_addrs(&self, paddr: PhysAddr, buf: &mut [u8]) -> PagingResult<usize> {
-        let vaddr = IF::phys_to_virt(paddr);
-        unsafe {
-            core::ptr::copy_nonoverlapping(vaddr.as_ptr(), buf.as_mut_ptr(), buf.len())
-        }
-        Ok(buf.len())
+    pub fn read_phys_addrs(
+        &self,
+        paddr: PhysAddr,
+        buf: *mut u8,
+        size: usize,
+    ) -> PagingResult<usize> {
+        let vaddr = self.paging.phys_to_virt(paddr);
+        unsafe { core::ptr::copy_nonoverlapping(vaddr.as_ptr(), buf, size) }
+        Ok(size)
     }
 
     /// Write data to physical memory addr
-    pub fn write_phys_addrs(&mut self, paddr: PhysAddr, buf: &[u8]) -> PagingResult<usize> {
-        let vaddr = IF::phys_to_virt(paddr);
-        unsafe {
-            core::ptr::copy_nonoverlapping(buf.as_ptr(), vaddr.as_mut_ptr(),  buf.len())
-        }
-        Ok(buf.len())
+    pub fn write_phys_addrs(
+        &mut self,
+        paddr: PhysAddr,
+        buf: *const u8,
+        size: usize,
+    ) -> PagingResult<()> {
+        let vaddr = self.paging.phys_to_virt(paddr);
+        unsafe { core::ptr::copy_nonoverlapping(buf, vaddr.as_mut_ptr(), size) }
+        Ok(())
     }
 }
 
 // Private implements.
 impl<M: PagingMetaData, PTE: GenericPTE, IF: PagingIf> PageTable64<M, PTE, IF> {
-    fn alloc_table() -> PagingResult<PhysAddr> {
-        if let Some(paddr) = IF::alloc_frame() {
-            let ptr = IF::phys_to_virt(paddr).as_mut_ptr();
+    fn alloc_table(paging: &IF) -> PagingResult<PhysAddr> {
+        if let Some(paddr) = paging.alloc_frame() {
+            let ptr = paging.phys_to_virt(paddr).as_mut_ptr();
             unsafe { core::ptr::write_bytes(ptr, 0, PAGE_SIZE_4K) };
             Ok(paddr)
         } else {
@@ -281,12 +300,12 @@ impl<M: PagingMetaData, PTE: GenericPTE, IF: PagingIf> PageTable64<M, PTE, IF> {
     }
 
     fn table_of<'a>(&self, paddr: PhysAddr) -> &'a [PTE] {
-        let ptr = IF::phys_to_virt(paddr).as_ptr() as _;
+        let ptr = self.paging.phys_to_virt(paddr).as_ptr() as _;
         unsafe { core::slice::from_raw_parts(ptr, ENTRY_COUNT) }
     }
 
     fn table_of_mut<'a>(&self, paddr: PhysAddr) -> &'a mut [PTE] {
-        let ptr = IF::phys_to_virt(paddr).as_mut_ptr() as _;
+        let ptr = self.paging.phys_to_virt(paddr).as_mut_ptr() as _;
         unsafe { core::slice::from_raw_parts_mut(ptr, ENTRY_COUNT) }
     }
 
@@ -302,7 +321,7 @@ impl<M: PagingMetaData, PTE: GenericPTE, IF: PagingIf> PageTable64<M, PTE, IF> {
 
     fn next_table_mut_or_create<'a>(&mut self, entry: &mut PTE) -> PagingResult<&'a mut [PTE]> {
         if entry.is_unused() {
-            let paddr = Self::alloc_table()?;
+            let paddr = Self::alloc_table(&self.paging)?;
             self.intrm_tables.push(paddr);
             *entry = GenericPTE::new_table(paddr);
             Ok(self.table_of_mut(paddr))
@@ -400,7 +419,7 @@ impl<M: PagingMetaData, PTE: GenericPTE, IF: PagingIf> PageTable64<M, PTE, IF> {
 impl<M: PagingMetaData, PTE: GenericPTE, IF: PagingIf> Drop for PageTable64<M, PTE, IF> {
     fn drop(&mut self) {
         for frame in &self.intrm_tables {
-            IF::dealloc_frame(*frame);
+            self.paging.dealloc_frame(*frame);
         }
     }
 }

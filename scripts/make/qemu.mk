@@ -58,7 +58,7 @@ ifeq ($(HV), y)
         -machine virtualization=on,gic-version=2
   else ifeq ($(ARCH), x86_64)
     qemu_args-y := \
-        -m 3G -smp $(SMP) $(qemu_args-$(ARCH)) \
+        -m 2815M -smp $(SMP) $(qemu_args-$(ARCH)) \
         -device loader,addr=0x4000000,file=$(GUEST_BIOS),force-raw=on \
         -device loader,addr=0x4001000,file=$(GUEST_BIN),force-raw=on
   endif

@@ -140,14 +140,28 @@ impl GuestPageTableTrait for GuestPageTable {
         }
     }
 
-    fn read_guest_phys_addrs(&self, paddr: GuestPhysAddr, buf: &mut [u8]) -> HyperResult<usize> {
+    fn read_guest_phys_addrs(
+        &self,
+        paddr: GuestPhysAddr,
+        buf: *mut u8,
+        size: usize,
+    ) -> HyperResult<usize> {
         let addr = self.translate(paddr)?;
-        self.0.read_phys_addrs(addr.into(), buf).map_err(|_| HyperError::PageFault)
+        self.0
+            .read_phys_addrs(addr.into(), buf, size)
+            .map_err(|_| HyperError::PageFault)
     }
 
-    fn write_guest_phys_addrs(&mut self, paddr: GuestPhysAddr, buf: &[u8]) -> HyperResult<usize> {
+    fn write_guest_phys_addrs(
+        &mut self,
+        paddr: GuestPhysAddr,
+        buf: *const u8,
+        size: usize,
+    ) -> HyperResult<()> {
         let addr = self.translate(paddr)?;
-        self.0.write_phys_addrs(addr.into(), buf).map_err(|_| HyperError::PageFault)
+        self.0
+            .write_phys_addrs(addr.into(), buf, size)
+            .map_err(|_| HyperError::PageFault)
     }
 
     fn root_paddr(&self) -> hypercraft::HostPhysAddr {

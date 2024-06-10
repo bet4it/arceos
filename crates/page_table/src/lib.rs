@@ -87,15 +87,17 @@ pub trait PagingMetaData: Sync + Send + Sized {
 /// The low-level **OS-dependent** helpers that must be provided for
 /// [`PageTable64`].
 pub trait PagingIf: Sized {
+    fn new() -> Self;
+
     /// Request to allocate a 4K-sized physical frame.
-    fn alloc_frame() -> Option<PhysAddr>;
+    fn alloc_frame(&self) -> Option<PhysAddr>;
 
     /// Request to allocate `page_nums` 4K-sized physical frame.
     #[cfg(target_arch = "riscv64")]
     fn alloc_frames(page_nums: usize) -> Option<PhysAddr>;
 
     /// Request to free a allocated physical frame.
-    fn dealloc_frame(paddr: PhysAddr);
+    fn dealloc_frame(&self, paddr: PhysAddr);
 
     /// Request to free `page_nums` 4K-sized physical frame.
     #[cfg(target_arch = "riscv64")]
@@ -104,7 +106,40 @@ pub trait PagingIf: Sized {
     /// Returns a virtual address that maps to the given physical address.
     ///
     /// Used to access the physical memory directly in page table implementation.
-    fn phys_to_virt(paddr: PhysAddr) -> VirtAddr;
+    fn phys_to_virt(&self, paddr: PhysAddr) -> VirtAddr;
+}
+
+/// Implementation of [`PagingIf`], to provide address translation to
+/// the [page_table] crate.
+pub struct PagingIfCallback<F>(Option<F>);
+
+impl<F> PagingIfCallback<F>
+where
+    F: Fn(PhysAddr) -> VirtAddr,
+{
+    pub fn set_callback(&mut self, closure: F) {
+        self.0 = Some(closure)
+    }
+}
+
+impl<F> PagingIf for PagingIfCallback<F>
+where
+    F: Fn(PhysAddr) -> VirtAddr,
+{
+    fn new() -> Self {
+        Self(None)
+    }
+
+    fn alloc_frame(&self) -> Option<PhysAddr> {
+        None
+    }
+
+    fn dealloc_frame(&self, _: PhysAddr) {}
+
+    #[inline]
+    fn phys_to_virt(&self, paddr: PhysAddr) -> VirtAddr {
+        self.0.as_ref().map(|f| f(paddr)).unwrap()
+    }
 }
 
 /// The page sizes supported by the hardware page table.
