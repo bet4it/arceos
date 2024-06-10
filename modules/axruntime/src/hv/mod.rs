@@ -21,12 +21,10 @@ impl HyperCraftHal for HyperCraftHalImpl {
         global_allocator().dealloc_pages(pa as usize, num_pages);
     }
 
-    #[cfg(target_arch = "x86_64")]
     fn phys_to_virt(pa: HostPhysAddr) -> HostVirtAddr {
         phys_to_virt(pa.into()).into()
     }
 
-    #[cfg(target_arch = "x86_64")]
     fn virt_to_phys(va: HostVirtAddr) -> HostPhysAddr {
         virt_to_phys(va.into()).into()
     }

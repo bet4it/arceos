@@ -94,14 +94,14 @@ pub trait PagingIf: Sized {
 
     /// Request to allocate `page_nums` 4K-sized physical frame.
     #[cfg(target_arch = "riscv64")]
-    fn alloc_frames(page_nums: usize) -> Option<PhysAddr>;
+    fn alloc_frames(&self, page_nums: usize) -> Option<PhysAddr>;
 
     /// Request to free a allocated physical frame.
     fn dealloc_frame(&self, paddr: PhysAddr);
 
     /// Request to free `page_nums` 4K-sized physical frame.
     #[cfg(target_arch = "riscv64")]
-    fn dealloc_frames(paddr: PhysAddr, page_nums: usize);
+    fn dealloc_frames(&self, paddr: PhysAddr, page_nums: usize);
 
     /// Returns a virtual address that maps to the given physical address.
     ///
@@ -134,7 +134,15 @@ where
         None
     }
 
+    #[cfg(target_arch = "riscv64")]
+    fn alloc_frames(&self, _: usize) -> Option<PhysAddr> {
+        None
+    }
+
     fn dealloc_frame(&self, _: PhysAddr) {}
+
+    #[cfg(target_arch = "riscv64")]
+    fn dealloc_frames(&self, _: PhysAddr, _: usize) {}
 
     #[inline]
     fn phys_to_virt(&self, paddr: PhysAddr) -> VirtAddr {

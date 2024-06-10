@@ -64,7 +64,8 @@ impl<M: PagingMetaData, PTE: GenericPTE, IF: PagingIf> PageTable64<M, PTE, IF> {
 
     #[cfg(target_arch = "riscv64")]
     pub fn try_new_gpt() -> PagingResult<Self> {
-        let root_paddr = Self::alloc_guest_page_table()?;
+        let paging = IF::new();
+        let root_paddr = Self::alloc_guest_page_table(&paging)?;
         Ok(Self {
             root_paddr,
             intrm_tables: vec![
@@ -73,6 +74,7 @@ impl<M: PagingMetaData, PTE: GenericPTE, IF: PagingIf> PageTable64<M, PTE, IF> {
                 root_paddr + 0x2000,
                 root_paddr + 0x3000,
             ],
+            paging,
             _phantom: PhantomData,
         })
     }
@@ -289,9 +291,9 @@ impl<M: PagingMetaData, PTE: GenericPTE, IF: PagingIf> PageTable64<M, PTE, IF> {
     }
 
     #[cfg(target_arch = "riscv64")]
-    fn alloc_guest_page_table() -> PagingResult<PhysAddr> {
-        if let Some(paddr) = IF::alloc_frames(4) {
-            let ptr = IF::phys_to_virt(paddr).as_mut_ptr();
+    fn alloc_guest_page_table(paging: &IF) -> PagingResult<PhysAddr> {
+        if let Some(paddr) = paging.alloc_frames(4) {
+            let ptr = paging.phys_to_virt(paddr).as_mut_ptr();
             unsafe { core::ptr::write_bytes(ptr, 0, PAGE_SIZE_4K * 4) };
             Ok(paddr)
         } else {
